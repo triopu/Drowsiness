@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "623296393130",
+    "firebase_url": "https://ekgandroid-72100.firebaseio.com",
+    "project_id": "ekgandroid-72100",
+    "storage_bucket": "ekgandroid-72100.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:623296393130:android:198119fbd8e3c51f",
+        "android_client_info": {
+          "package_name": "trio.ekgandroid"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "623296393130-c9tenhbbkk1kbj616lrg1g2fi3bhbdrv.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "trio.ekgandroid",
+            "certificate_hash": "555DCEA54404E5546C3E066A51CCD0ECE20FC9BA"
+          }
+        },
+        {
+          "client_id": "623296393130-jlo4ghvnhhi5r1iavapcv8a4ju8biumi.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDCS8gSxdeBD9zgNlfHvDCe6zyb3mOc994"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 2,
+          "other_platform_oauth_client": [
+            {
+              "client_id": "623296393130-jlo4ghvnhhi5r1iavapcv8a4ju8biumi.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
