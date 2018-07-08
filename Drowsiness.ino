@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-SoftwareSerial Bluetooth(2,3); //RX, TX
+SoftwareSerial Bluetooth(3,2); //RX, TX
 
 #define AD8232      A0
 #define LOPositive  7
@@ -131,7 +131,7 @@ void BeatRate(){
       }
       else{
         // Mengirim data EKG melalui Bluetooth
-        sprintf(outStr,"%03d",next_ecg_pt);
+        sprintf(outStr,"%04d",next_ecg_pt);
         Bluetooth.print("*");
         Bluetooth.write(outStr);
       }

@@ -31,11 +31,9 @@ import com.jjoe64.graphview.GraphView;
 import com.jjoe64.graphview.GraphView.GraphViewData;
 import com.jjoe64.graphview.GraphViewSeries;
 import com.jjoe64.graphview.LineGraphView;
+import com.jjoe64.graphview.GraphViewStyle;
 
-import com.firebase.client.DataSnapshot;
 import com.firebase.client.Firebase;
-import com.firebase.client.FirebaseError;
-import com.firebase.client.ValueEventListener;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -44,7 +42,6 @@ import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.StringBufferInputStream;
 import java.util.Arrays;
 import java.util.Calendar;
 
@@ -73,10 +70,11 @@ public class MainActivity extends Activity implements View.OnClickListener {
     Boolean bltConnect = false;
 
     int initRR       = 0;
-    double lengthRR  = 8;
-    double threshold = 1.50;
-    double[] rrData = {0.00, 0.00, 0.00, 0.00,0.00, 0.00, 0.00, 0.00};
-    double[] rrTime = {0.00, 0.00, 0.00, 0.00,0.00, 0.00, 0.00, 0.00};
+    double lengthRR  = 10;
+    double thresholdBottom = 0.23;
+    double thresholdUp     = 0.30;
+    double[] rrData = {0.00, 0.00, 0.00, 0.00,0.00, 0.00, 0.00, 0.00, 0.00, 0.00};
+    double[] rrTime = {0.00, 0.00, 0.00, 0.00,0.00, 0.00, 0.00, 0.00, 0.00, 0.00};
 
     private Vibrator vib;
     private MediaPlayer mp;
@@ -100,14 +98,13 @@ public class MainActivity extends Activity implements View.OnClickListener {
 
     static boolean startRecording = false;
     static boolean stopRecording = false;
-    static boolean UploadData = true;
-    static boolean DownloadData = false;
+    static boolean detectDrowsy = false;
     String strIncomData = "0";
     String strIncomRate = "100";
 
     //Button Init
     Button bXminus,bXplus,bLoad, bBrowse, bConnect, bDisconnect, bFolder;
-    ToggleButton tbLock, tbScroll, tbRecord, tbInternet;
+    ToggleButton tbLock, tbScroll, tbRecord, tbDrowsiness;
     EditText myfileName;
     TextView textLF,textHF, textLFHF;
 
@@ -152,7 +149,6 @@ public class MainActivity extends Activity implements View.OnClickListener {
                             graphIt(item);
                             saveIt(item, heartRate);
                             strIncomData = item;
-                            DataStreaming();
                         }
                         else if(item.length() == 4){
                             if(initRR < lengthRR){
@@ -182,24 +178,26 @@ public class MainActivity extends Activity implements View.OnClickListener {
                                     textLF.setText(sLF);
                                     textLFHF.setText(sLFHF);
                                 }
-
-                                if(LFHF<threshold && LFHF>0.05){
-                                    //vib.vibrate(500);
-                                    //mp.start();
-                                }
                             }
                             initRR = initRR +1;
                             double rrVal  = Double.parseDouble(item);
                             double BPM    = (60.00*1000.00)/rrVal;
                             int HR        = (int)BPM;
                             heartRate     = String.valueOf(HR);
-                            strIncomRate = item;
-                            DataStreaming();
+                            strIncomRate  = item;
                             String sHR   = "HR: " + heartRate + " bpm";
                             QRS.setText(sHR);
+
                             if (BPM > 100.00 || BPM < 60.00) {
                                 QRS.setTextColor(Color.RED);
                             } else QRS.setTextColor(Color.BLACK);
+
+                            if(detectDrowsy) {
+                                if ((LFHF > thresholdBottom && LFHF < thresholdUp) || BPM < 60.00) {
+                                    vib.vibrate(3000);
+                                    mp.start();
+                                }
+                            }
                         }
                     }
                     break;
@@ -219,10 +217,10 @@ public class MainActivity extends Activity implements View.OnClickListener {
         Firebase.setAndroidContext(this);
         initGraph();
         buttonInit();
-        DataDownloading();
 
         mp = MediaPlayer.create(this,R.raw.beep);
         vib = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+
     }
 
     void initGraph(){
@@ -237,7 +235,7 @@ public class MainActivity extends Activity implements View.OnClickListener {
                 new GraphViewSeries.GraphViewSeriesStyle(Color.YELLOW,2),
                 new GraphViewData[]{new GraphViewData(0,0)});
 
-        graphView = new LineGraphView(this, "Graph");
+        graphView = new LineGraphView(this, "");
 
         graphView.setViewPort(0, Xview);
         graphView.setScrollable(true);
@@ -247,7 +245,7 @@ public class MainActivity extends Activity implements View.OnClickListener {
         graphView.addSeries(Series); //Data
         GraphView.addView(graphView);
         graphView.setHorizontalLabels(new String[] {"","", "", "", "","","","","","",""});
-        graphView.setVerticalLabels(new String[] {"3.00","", "", "", "","","","","","","0.00"});
+        graphView.setVerticalLabels(new String[] {"","", "", "", "","","","","","",""});
     }
 
     public void buttonInit(){
@@ -267,8 +265,8 @@ public class MainActivity extends Activity implements View.OnClickListener {
         tbRecord.setOnClickListener(this);
         bFolder = (Button)findViewById(R.id.bFolder);
         bFolder.setOnClickListener(this);
-        tbInternet = (ToggleButton)findViewById(R.id.tbInternet);
-        tbInternet.setOnClickListener(this);
+        tbDrowsiness = (ToggleButton)findViewById(R.id.tbDrowsiness);
+        tbDrowsiness.setOnClickListener(this);
         bLoad = (Button)findViewById(R.id.bLoad);
         bLoad.setOnClickListener(this);
         bBrowse = (Button) findViewById(R.id.bBrowse);
@@ -327,49 +325,6 @@ public class MainActivity extends Activity implements View.OnClickListener {
                 fw.close();
             } catch (IOException e) {
             }
-        }
-    }
-
-    public void DataStreaming(){
-        if(UploadData){
-            Firebase ref = new Firebase(Config.FIREBASE_URL);
-            DataInternet datainternet = new DataInternet();
-            datainternet.setData(strIncomData);
-            datainternet.setHeartrate(strIncomRate);
-            ref.child("DataInternet").setValue(datainternet);
-        }
-    }
-
-    public void DataDownloading(){
-        if(DownloadData){
-            Firebase ref = new Firebase(Config.FIREBASE_URL);
-            ref.addValueEventListener(new ValueEventListener() {
-                @Override
-                public void onDataChange(DataSnapshot snapshot) {
-                    for (DataSnapshot postSnapshot : snapshot.getChildren()) {
-                        //Getting the data from snapshot
-                        if(DownloadData) {
-                            DataInternet datainternet = postSnapshot.getValue(DataInternet.class);
-                            String strIncom = datainternet.getData();
-                            Log.d("myInet: ", strIncom);
-                            String strIncomQRS = datainternet.getHeartrate();
-                            heartRate = strIncomQRS;
-                            graphIt(strIncom);
-                            saveIt(strIncom, heartRate);
-                            QRS.setText(strIncomQRS);
-                            QRSVal = Integer.parseInt(strIncomQRS);
-                            if (QRSVal > 100 || QRSVal < 60) {
-                                QRS.setTextColor(Color.RED);
-                            } else QRS.setTextColor(Color.BLACK);
-                        }
-                    }
-                }
-
-                @Override
-                public void onCancelled(FirebaseError firebaseError) {
-                    System.out.println("The read failed: " + firebaseError.getMessage());
-                }
-            });
         }
     }
 
@@ -492,24 +447,15 @@ public class MainActivity extends Activity implements View.OnClickListener {
 
     public void calcLFHF(double[] RRdata, double[] RRtime) {
 
-        /*
-        //Debugging
-        double[] RRx = {9.03,9.74,10.51,11.39,12.21,13.05,13.89,14.81,15.60,16.39};
-        double[] RRy = {1.20,1.10,0.92,0.97,1.00,1.20,1.21,1.22};
-        Log.d("Array is:", Arrays.toString(RRx));
-        RRx = shiftData(RRx,13.12);
-        Log.d("New Array is:", Arrays.toString(RRx));
-        */
-
         RRData rr = new RRData(RRtime, TimeUnit.SECOND, RRdata, TimeUnit.SECOND);
 
         HRVCalculatorFacade controller = new HRVCalculatorFacade(rr);
         HRVParameter HF = controller.getHF();
-        theHF = HF.getValue();
+        theHF = Math.abs(HF.getValue());
         theHF = round(theHF,2);
 
         HRVParameter LF = controller.getLF();
-        theLF = LF.getValue();
+        theLF = Math.abs(LF.getValue());
         theLF = round(theLF,2);
         LFHF = Math.abs(theLF/theHF);
         LFHF = round(LFHF,2);
@@ -625,17 +571,12 @@ public class MainActivity extends Activity implements View.OnClickListener {
                 browseFolder();
                 break;
 
-            case R.id.tbInternet:
-                if (tbInternet.isChecked()) {
-                    UploadData = true;
-                    DownloadData = false;
-                    Log.d("myInet: ", "False");
+            case R.id.tbDrowsiness:
+                if (tbDrowsiness.isChecked()) {
+                    detectDrowsy = true;
                 } else {
-                    UploadData = false;
-                    DownloadData = true;
-                    BluetoothActivity.disconnect();
-                    DataDownloading();
-                    Log.d("myInet: ", "True");
+                    detectDrowsy = false;
+                    mp.stop();
                 }
                 break;
 
